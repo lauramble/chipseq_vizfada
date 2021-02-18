@@ -1,7 +1,16 @@
 import json
-import requests
 import pandas as pd
 import sys
+import subprocess
+import pkg_resource
+
+installed = {pkg.key for pkg in pkg_resources.working_set}
+
+if "requests" in installed:
+    python = sys.executable
+    subprocess.check_call([pyhton, '-m', 'pip', 'install', "requests"], stdout=subprocess.DEVNULL)
+
+import requests
 
 species = sys.argv[1]
 

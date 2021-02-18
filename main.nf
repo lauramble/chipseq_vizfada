@@ -1,5 +1,7 @@
 nextflow.enable.dsl = 2
 
+include { create_index } from './modules/index'
+
 process build_design_species {
 
     container 'amancevice/pandas:1.2.1'
@@ -9,15 +11,14 @@ process build_design_species {
         path script
 
     output:
-	path 'single.csv', optional: true
-	path 'paired.csv', optional: true
+	    path 'single.csv', optional: true
+	    path 'paired.csv', optional: true
         path 'single_*.csv', optional: true, emit: single
         path 'paired_*.csv', optional: true, emit: paired
     
     script:
         """
-	pip3 install requests
-        python3 $script '${params.species}'
+        python3 ${params.script}/chipseq_input_match.py '${params.species}'
         """
 }
 
@@ -26,9 +27,6 @@ process run_chipseq_genotoul {
        
     input:
         tuple file(design), val(single)
-        path fasta
-        path gtf
-        path bwa_index
     
     output:
         path 'results_*'
@@ -38,21 +36,31 @@ process run_chipseq_genotoul {
         srun nextflow run nf-core/chipseq -profile genotoul \
              --input $design \
              $single \
-             --bwa_index ${bwa_index}/${fasta.baseName}.fa \
+             --bwa_index ${params.index}/${fasta.baseName}.fa \
              --skip_diff_analysis \
-             --fasta $fasta \
-             --gtf $gtf \
+             --fasta ${params.fasta} \
+             --gtf ${params.gtf} \
+             --macs2_gsize ${params.gsize}
              --save_reference \
              --outdir 'results_${design.baseName}'\
              &
         """
 }
 
+index = file("${params.index}/${params.species}", type:"dir")
+
 workflow {
-    build_design_species("${baseDir}/scripts/chipseq_input_match.py")
+    params.indexExists = index.exists()
+    if (params.indexExists) {
+        create_index()
+    }
+    
+    build_design_species()
     all_chipseq = Channel.empty()
     all_chipseq = all_chipseq.concat(build_design_species.out.single.flatten().combine(Channel.from('--single_end')))
     all_chipseq = all_chipseq.concat(build_design_species.out.paired.flatten().combine(Channel.from('')))
-    run_chipseq_genotoul(all_chipseq, "${baseDir}/${params.fasta}", "${baseDir}/${params.gtf}", "${baseDir}/${params.bwa_index}")
+    
+    
+    run_chipseq_genotoul(all_chipseq)
 }
 

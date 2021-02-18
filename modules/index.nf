@@ -1,56 +1,51 @@
-process get_reference {
-	input:
-	val species
-	path reference
-
-	output:
-	env fasta, emit: fasta
-	env gsize, emit: gsize
-
-	shell:
-	'''
-	fasta=$(awk 'BEGIN{FS=","} $1 ~ species {print $2}' species="!{species}" !{reference})
-	gsize=$(awk 'BEGIN{FS=","} $1 ~ species {print $3}' species="!{species}" !{reference})
-	'''
-
-}
-
-
 process download_reference {
+    publishDir "${params.index}/${params.species}", pattern: "*.gtf"
+
 	input:
 	val reference
 
 	output:
-	path '*.fa'
+	path '*.fa', emit: fasta
+	path '*.gtf'
 
 	script:
 	"""
-	wget $reference
+	wget ${params.fasta}
+	wget ${params.gtf}
 	gunzip *.gz
 	"""
 }
 
 process index_bwa_mem {
-	publishDir "${params.index}"
+	publishDir "${params.index}/${params.species}"
 
 	input:
 	path fasta
 
 	output:
-	path "${species}"
+	path "$fasta*"
+	
+	afterScript:
+	params.indexExists = true
 
 	script:
 	"""
 	bwa index -a bwtsw $fasta
-	mkdir $species && mv ${fasta}* $species	
+	mkdir $params.species && mv ${params.fasta}* $params.species	
 	"""
 }
 
 workflow create_index {
-	take: species, reference
-	main:
-	get_reference(species, reference)
-	download_reference(get_reference.out.fasta)
-	index_bwa_mem(download_reference.out)
+    main:
+    
+        //Parsing reference file
+        awkCMD = ['awk', 'BEGIN{FS=\",\"; OFS=\"\\n\"} \$1 ~ species {print}', "species=$params.species", "$params.reference"]
+        data = awkCMD.execute()
+        data.waitFor()
+        (species, params.fasta, params.gtf, params.gsize) = data.text.split(',')
+        
+	    download_reference()
+	    index_bwa_mem(download_reference.out.fasta)
+
 }
 
