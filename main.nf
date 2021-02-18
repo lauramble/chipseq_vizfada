@@ -30,6 +30,9 @@ process run_chipseq_genotoul {
     
     output:
         path 'results_*'
+    
+    when:
+        params.indexExists
         
     script:
         """
