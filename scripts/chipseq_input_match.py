@@ -2,13 +2,15 @@ import json
 import pandas as pd
 import sys
 import subprocess
-import pkg_resource
 
-installed = {pkg.key for pkg in pkg_resources.working_set}
+installed = set(sys.modules.keys())
+required = {"requests"}
+missing = required-installed
 
-if "requests" in installed:
+if missing:
     python = sys.executable
-    subprocess.check_call([pyhton, '-m', 'pip', 'install', "requests"], stdout=subprocess.DEVNULL)
+    for pkg in missing:
+        subprocess.check_call([python, '-m', 'pip', 'install', pkg], stdout=subprocess.DEVNULL)
 
 import requests
 
