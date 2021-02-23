@@ -1,9 +1,10 @@
 nextflow.enable.dsl = 2
 
+/*
 process index_bwa_mem {
 	publishDir "${params.index}"
         
-        label 'process_high'
+    label 'process_high'
 
 	container 'nfcore/chipseq:1.2.1'
 	
@@ -24,6 +25,24 @@ process index_bwa_mem {
 	bwa index -a bwtsw *.fa
 	mkdir ${params.species} && mv ${fasta.baseName}* $params.species && mv *.gtf ${params.species}
 	"""
+}
+*/
+
+process unzip {
+
+    input:
+    path fasta
+    path gtf
+    
+    output:
+    path "*.fa", emits: fasta_chipseq
+    path "*.gtf", emits: gtf_chipseq
+    
+    script:
+    """
+    gunzip *.gz
+    """
+    
 }
 
 process build_design_species {
@@ -47,10 +66,11 @@ process build_design_species {
 
 process run_chipseq_genotoul {
     tag "$design"
-    publishDir path: "${params.outDir}", mode: 'copy'
+    publishDir pattern: "results_*/genome", path: "${params.index}/${params.species}", mode: 'copy', enabled: params.makeIndex
+    publishDir path: "${params.outDir}"
     
     label "process_high"
-
+native
     input:
         tuple file(design), val(single)
         path index
@@ -61,18 +81,19 @@ process run_chipseq_genotoul {
         path 'results_*'
         
     script:
+        def index = ${params.makeIndex} ? '--save-reference' : "--bwa_index $index/${file(fasta).baseName}"
         """
         srun nextflow run nf-core/chipseq -profile genotoul \
              --input $design \
              $single \
-             --bwa_index ${params.index}/${fasta.baseName} \
-             --skip_diff_analysis \
-             --fasta $fasta \
+             $index \
+             --fasta $fasta \native
              --gtf $gtf \
              --macs_gsize ${params.gsize} \
-             --outdir 'results_${design.baseName}'\
              --narrow_peaks \
+             --outdir 'results_${design.baseName}'\
              --skip_consensus_peaks \
+             --skip_diff_analysis \
              --skip_igv \
              &
         """
@@ -92,22 +113,19 @@ workflow {
     params.gsize = gsize
    
     if (!index.exists()) {
-        index_bwa_mem(fasta, gtf)
-        index_chipseq = index_bwa_mem.out.index_chipseq
-        fasta_chipseq = index_bwa_mem.out.fasta_chipseq
-        gtf_chipseq = index_bwa_mem.out.gtf_chipseq
+        params.makeIndex = true
     } else {
-        index_chipseq = index
-        fasta_chipseq = "$index/${file(fasta).baseName}"
-        gtf_chipseq = "$index/${file(gtf).baseName}"
+        params.makeIndex = false
     }
     
+        
+    unzip(fasta, gtf)
     build_design_species()
+    
     all_chipseq = Channel.empty()
     all_chipseq = all_chipseq.concat(build_design_species.out.single.flatten().combine(Channel.from('--single_end')))
     all_chipseq = all_chipseq.concat(build_design_species.out.paired.flatten().combine(Channel.from('')))
     
-    
-    run_chipseq_genotoul(all_chipseq, index_chipseq, fasta_chipseq, gtf_chipseq)
+    run_chipseq_genotoul(all_chipseq, "$index/${file(fasta).baseName}", unzip.out.fasta_chipseq, unzip.out.gtf_chipseq)
 }
 
