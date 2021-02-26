@@ -1,0 +1,8 @@
+cleanup.sh
+run_test.sh
+report.html*
+resume_test.sh
+.nextflow*
+results
+slurm*
+work
