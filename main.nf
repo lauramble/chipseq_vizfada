@@ -1,7 +1,7 @@
 nextflow.enable.dsl = 2
 
 process index_bwa_mem {
-	publishDir "${params.index}"
+	publishDir "${params.index}", mode: "copy"
         
     label 'process_high'
 
@@ -14,9 +14,9 @@ process index_bwa_mem {
 	path gtf
 
 	output:
-	path "$params.species", emit: index_chipseq
-	path "${params.species}/${fasta.baseName}", emit: fasta_chipseq
-	path "${params.species}/${gtf.baseName}", emit: gtf_chipseq
+	path "${params.species.replace(" ", '_')}", emit: index_chipseq
+	path "${params.species.replace(" ", '_')}/${fasta.baseName}", emit: fasta_chipseq
+	path "${params.species.replace(" ", '_')}/${gtf.baseName}", emit: gtf_chipseq
 
 	script:
 	def species = params.species.replace(" ", '_')
@@ -30,7 +30,7 @@ process index_bwa_mem {
 process build_design_species {
 
     container 'amancevice/pandas:1.2.1'
-    publishDir path: "${params.outDir}/designs", pattern: '{single,paired}.csv', mode: 'copy'
+    publishDir path: "${params.outDir}/designs", pattern: '*.csv', mode: 'copy'
 
     label 'process_low'
 
@@ -50,7 +50,6 @@ process run_chipseq_genotoul {
     tag "$design"
     publishDir path: "${params.outDir}", mode: 'copy'
 
-    
     label "process_high"
 
     input:
@@ -60,23 +59,26 @@ process run_chipseq_genotoul {
         path gtf
     
     output:
-        path 'results_*'
+        path 'results_*/bwa/mergedLibrary/bigwig'
+        path 'results_*/bwa/mergedLibrary/macs'
+        path 'results_*/pipeline_info'
+	path 'results_*/multiqc'
         
     script:
         """
         srun nextflow run nf-core/chipseq -profile genotoul \
              --input $design \
              $single \
-             --bwa_index ${index}/${fasta.baseName} \
+             --bwa_index ${index}/${fasta} \
              --skip_diff_analysis \
              --fasta $fasta \
              --gtf $gtf \
              --macs_gsize ${params.gsize} \
              --outdir 'results_${design.baseName}'\
-             --narrow_peaks \
+             --narrow_peak \
              --skip_consensus_peaks \
-             --skip_igv \
-             &
+             --skip_igv
+        rm -rf work results_*/bwa/*.bam
         """
 }
 
@@ -89,7 +91,7 @@ workflow {
     (species, fasta, gtf, gsize) = data.text.split(',')
     //params.fastaBase = file(fasta).baseName
     //params.gtfBase = file(gtf).baseName
-    params.gsize = gsize
+    params.gsize = gsize.replace("\n", "")
 
     index = file("${params.index}/${params.species.replace(" ", '_')}", type:"dir")
    
