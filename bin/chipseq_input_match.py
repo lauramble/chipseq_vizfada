@@ -363,6 +363,7 @@ if __name__ == "__main__":
     ############# GET METADATA
 
     filesDf = json_to_df(files, flatten=False)
+    filesDf["experiment_accession"]=[exp["accession"] for exp in filesDf["experiment"]]
     experimentsDf = json_to_df(experiments, flatten=False)
     #inputDf = json_to_df(input_dna, flatten=False)
     specDf = json_to_df(specimens, flatten=False)
@@ -408,3 +409,6 @@ if __name__ == "__main__":
     
     with open(f"{species}_chipseq.tsv", "w") as f:
         f.write(mTrim.to_csv(index=False, sep="\t"))
+        
+    with open(f"{species}_chipseq.json", "w") as f:
+        f.write(mTrim.to_json())

@@ -1,14 +1,14 @@
 process GET_FAANG {
   publishDir "${params.outdir}/metadata",
       mode: params.publish_dir_mode,
-      pattern: "*.tsv"
+      pattern: "*.{tsv,json}"
 
   container "lauramble/python-vizfada"
     
   output:
   path "paired_*.csv", emit: paired, optional: true
   path "single_*.csv", emit: single, optional: true
-  path "*.tsv", emit: metadata
+  path "*.{tsv,json}", emit: metadata
   
   script:
   def species = "${params.species}".capitalize().replace("_", " ")

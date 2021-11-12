@@ -7,3 +7,8 @@ results
 slurm*
 work
 index
+scripts
+test.py
+timeline.html*
+trace.txt*
+reference.txt
