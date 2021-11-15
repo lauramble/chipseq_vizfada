@@ -59,7 +59,7 @@ process run_chipseq_genotoul {
         srun --mem=8G nextflow run nf-core/chipseq -profile genotoul \
              --input $design \
              $single \
-             -c conf/chipseq.config \
+             -c ${params.chipseqConf} \
              --bwa_index ${index}/${fasta} \
              --skip_diff_analysis \
              --skip_trimming \
