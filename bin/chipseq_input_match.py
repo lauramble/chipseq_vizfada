@@ -402,7 +402,7 @@ if __name__ == "__main__":
     b = pd.DataFrame([metadata.loc[index] for index in metadata.index.drop_duplicates() if type(metadata.loc[index]) == type(pd.Series(dtype='object'))])
     m = pd.concat([a, b])
     m.dropna(how='all', axis=1, inplace=True)
-    m.astype({"paperPublished_spec": 'bool', "paperPublished": "bool"})
+    m = m.astype({"paperPublished": "bool"})
 
     mTrimmed=m[[c for c in KEEP_COLUMNS if c in m.columns]]
     mTrim = mTrimmed.applymap(reformat)
