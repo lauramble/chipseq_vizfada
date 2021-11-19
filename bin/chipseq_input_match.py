@@ -411,4 +411,4 @@ if __name__ == "__main__":
         f.write(mTrim.to_csv(index=False, sep="\t"))
         
     with open(f"{species}_chipseq.json", "w") as f:
-        f.write(mTrim.to_json())
+        f.write(mTrim.to_json(orient="index"))
